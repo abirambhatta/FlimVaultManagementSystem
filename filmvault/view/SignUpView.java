@@ -200,10 +200,12 @@ public class SignUpView extends javax.swing.JFrame {
 
     private void BackToLoginButtonMouseEntered(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_BackToLoginButtonMouseEntered
         // TODO add your handling code here:
+        BackToLoginButton.setText("<html><u>Back To Login?</u></html>");
     }//GEN-LAST:event_BackToLoginButtonMouseEntered
 
     private void BackToLoginButtonMouseExited(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_BackToLoginButtonMouseExited
         // TODO add your handling code here:
+        BackToLoginButton.setText("<html>Back TO Login</html>");
     }//GEN-LAST:event_BackToLoginButtonMouseExited
 
     private void BackToLoginButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_BackToLoginButtonActionPerformed

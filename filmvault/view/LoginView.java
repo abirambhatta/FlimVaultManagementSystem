@@ -200,10 +200,12 @@ public class LoginView extends javax.swing.JFrame {
 
     private void ForgotPasswordButtonMouseEntered(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_ForgotPasswordButtonMouseEntered
         // TODO add your handling code here:
+        ForgotPasswordButton.setText("<html><u>Forgot password?</u></html>");
     }//GEN-LAST:event_ForgotPasswordButtonMouseEntered
 
     private void ForgotPasswordButtonMouseExited(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_ForgotPasswordButtonMouseExited
         // TODO add your handling code here:
+        ForgotPasswordButton.setText("<html>Forgot password?</html>");
     }//GEN-LAST:event_ForgotPasswordButtonMouseExited
 
     private void ForgotPasswordButtonActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_ForgotPasswordButtonActionPerformed
