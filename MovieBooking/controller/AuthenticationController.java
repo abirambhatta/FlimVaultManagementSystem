@@ -9,6 +9,7 @@ import MovieBooking.model.validation;
 import MovieBooking.model.Admin;
 import MovieBooking.model.User;
 import MovieBooking.view.AuthenticationView;
+import MovieBooking.view.AdminView;
 
 /**
  * AuthenticationController handles all authentication with CardLayout
@@ -109,7 +110,10 @@ public class AuthenticationController {
         // Check if admin login
         if (Admin.isAdmin(identifier, password)) {
             JOptionPane.showMessageDialog(view, "Admin Login Successful!\nWelcome Administrator", "Admin Access", JOptionPane.INFORMATION_MESSAGE);
-            // TODO: Open admin dashboard
+            // Open admin dashboard
+            view.dispose();
+            AdminView adminView = new AdminView();
+            adminView.setVisible(true);
         } else if (User.authenticateUser(identifier, password)) {
             JOptionPane.showMessageDialog(view, "User Login Successful!\nWelcome " + identifier, "Success", JOptionPane.INFORMATION_MESSAGE);
             // TODO: Open user dashboard
