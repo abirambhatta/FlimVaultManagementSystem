@@ -3,6 +3,7 @@ package MovieBooking.controller;
 import javax.swing.JOptionPane;
 
 import MovieBooking.model.validation;
+import MovieBooking.model.User;
 import MovieBooking.view.ForgotPasswordView;
 import MovieBooking.view.LoginView;
 
@@ -58,8 +59,13 @@ public class ForgotPasswordController {
             return;
         }
 
-        JOptionPane.showMessageDialog(view, "Password reset successful!", "Success", JOptionPane.INFORMATION_MESSAGE);
-        backToLogin();
+        // Check if user exists and update password
+        if (User.updatePassword(email, newPass)) {
+            JOptionPane.showMessageDialog(view, "Password reset successful!", "Success", JOptionPane.INFORMATION_MESSAGE);
+            backToLogin();
+        } else {
+            JOptionPane.showMessageDialog(view, "Email not found!", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     // Return to login form

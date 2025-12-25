@@ -12,7 +12,7 @@ public class User {
     private String email;
     private String password;
     
-    private static final String USER_FILE = "users.txt";
+    private static final String USER_FILE = "src/MovieBooking/users.txt";
     
     public User(String username, String email, String password) {
         this.username = username;
@@ -35,11 +35,13 @@ public class User {
         try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length == 3) {
-                    String username = parts[0];
-                    String email = parts[1];
-                    String userPassword = parts[2];
+                int firstComma = line.indexOf(',');
+                int secondComma = line.indexOf(',', firstComma + 1);
+                
+                if (firstComma != -1 && secondComma != -1) {
+                    String username = line.substring(0, firstComma);
+                    String email = line.substring(firstComma + 1, secondComma);
+                    String userPassword = line.substring(secondComma + 1);
                     
                     if ((identifier.equals(username) || identifier.equals(email)) 
                         && password.equals(userPassword)) {
@@ -53,14 +55,65 @@ public class User {
         return false;
     }
     
+    // Update user password in file
+    public static boolean updatePassword(String email, String newPassword) {
+        List<String> users = new ArrayList<>();
+        boolean userFound = false;
+        
+        // Read all users
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int firstComma = line.indexOf(',');
+                int secondComma = line.indexOf(',', firstComma + 1);
+                
+                if (firstComma != -1 && secondComma != -1) {
+                    String username = line.substring(0, firstComma);
+                    String userEmail = line.substring(firstComma + 1, secondComma);
+                    
+                    if (userEmail.equals(email)) {
+                        // Update password for this user
+                        users.add(username + "," + userEmail + "," + newPassword);
+                        userFound = true;
+                    } else {
+                        users.add(line);
+                    }
+                } else {
+                    users.add(line);
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+        
+        if (!userFound) {
+            return false;
+        }
+        
+        // Write all users back to file
+        try (FileWriter writer = new FileWriter(USER_FILE)) {
+            for (String user : users) {
+                writer.write(user + "\n");
+            }
+            return true;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+    
     // Check if username or email already exists
     public static boolean userExists(String username, String email) {
         try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length == 3) {
-                    if (parts[0].equals(username) || parts[1].equals(email)) {
+                int firstComma = line.indexOf(',');
+                int secondComma = line.indexOf(',', firstComma + 1);
+                
+                if (firstComma != -1 && secondComma != -1) {
+                    String fileUsername = line.substring(0, firstComma);
+                    String fileEmail = line.substring(firstComma + 1, secondComma);
+                    
+                    if (fileUsername.equals(username) || fileEmail.equals(email)) {
                         return true;
                     }
                 }
