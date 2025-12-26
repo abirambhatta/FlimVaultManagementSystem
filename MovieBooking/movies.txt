@@ -6,7 +6,7 @@ Parasite,Bong Joon-ho,Thriller,English,132 min,R
 Kabir Singh,Sandeep Reddy Vanga,Romance,Hindi,182 min,R
 Chapali Height,Dipendra K Khanal,Romance,Nepali,138 min,PG-13
 Pashupati Prasad,Dipendra K Khanal,Drama,Nepali,144 min,PG
-Gully Boy,Zoya Akhtar,Drama,Hindi,153 min,R
 Joker,Todd Phillips,Drama,English,122 min,R
 Loot,Nischal Basnet,Action,Nepali,138 min,PG-13
 Zindagi Na Milegi Dobara,Zoya Akhtar,Adventure,Hindi,155 min,PG
+Inteller,Christopher Nolan,Sci-fi,English,155 min,PG-13

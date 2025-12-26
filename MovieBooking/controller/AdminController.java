@@ -31,6 +31,13 @@ public class AdminController {
         loadMovieTable();
         currentPage = "movies";
         updateNavigationButtons();
+        configureTable();
+    }
+    
+    private void configureTable() {
+        view.getMovieTable().setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        view.getMovieTable().setRowSelectionAllowed(true);
+        view.getMovieTable().setColumnSelectionAllowed(false);
     }
 
     private void initController() {

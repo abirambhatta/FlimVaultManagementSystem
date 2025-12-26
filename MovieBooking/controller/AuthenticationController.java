@@ -78,6 +78,8 @@ public class AuthenticationController {
                 showLoginCard();
             }
         });
+        
+        setupEnterKeyNavigation();
     }
 
     private void showLoginCard() {
@@ -182,5 +184,82 @@ public class AuthenticationController {
         view.getEmailTextField6().setText("");
         view.getNewPasswordPasswordField().setText("");
         view.getConfirmPasswordPasswordField1().setText("");
+    }
+    
+    private void setupEnterKeyNavigation() {
+        // Login card - Enter key navigation
+        view.getEmailTextField4().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    view.getPasswordPasswordField4().requestFocus();
+                }
+            }
+        });
+        
+        view.getPasswordPasswordField4().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    performLogin();
+                }
+            }
+        });
+        
+        // SignUp card - Enter key navigation
+        view.getUsernameTextField().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    view.getEmailTextField5().requestFocus();
+                }
+            }
+        });
+        
+        view.getEmailTextField5().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    view.getPasswordPasswordField5().requestFocus();
+                }
+            }
+        });
+        
+        view.getPasswordPasswordField5().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    view.getConfirmPasswordPasswordField().requestFocus();
+                }
+            }
+        });
+        
+        view.getConfirmPasswordPasswordField().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    performSignUp();
+                }
+            }
+        });
+        
+        // Forgot Password card - Enter key navigation
+        view.getEmailTextField6().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    view.getNewPasswordPasswordField().requestFocus();
+                }
+            }
+        });
+        
+        view.getNewPasswordPasswordField().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    view.getConfirmPasswordPasswordField1().requestFocus();
+                }
+            }
+        });
+        
+        view.getConfirmPasswordPasswordField1().addKeyListener(new java.awt.event.KeyAdapter() {
+            public void keyPressed(java.awt.event.KeyEvent evt) {
+                if (evt.getKeyCode() == java.awt.event.KeyEvent.VK_ENTER) {
+                    performForgotPassword();
+                }
+            }
+        });
     }
 }
