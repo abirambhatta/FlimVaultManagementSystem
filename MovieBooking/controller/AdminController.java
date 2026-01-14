@@ -20,6 +20,7 @@ import MovieBooking.view.AuthenticationView;
  *
  * @author lenovo
  */
+@SuppressWarnings("unused")
 public class AdminController {
     private MovieBookingView view;
     private CardLayout cardLayout;
@@ -118,6 +119,7 @@ public class AdminController {
                 if (button != activeButton) {
                     button.setOpaque(false);
                     button.setForeground(new java.awt.Color(0, 0, 0));
+                    button.setBackground(new java.awt.Color(255, 255, 255));
                 }
             }
         });
@@ -144,6 +146,7 @@ public class AdminController {
     private void setActiveButton(javax.swing.JButton button) {
         if (activeButton != null) {
             activeButton.setOpaque(false);
+            activeButton.setBackground(new java.awt.Color(255, 255, 255));
             activeButton.setForeground(new java.awt.Color(0, 0, 0));
         }
         activeButton = button;
@@ -223,54 +226,60 @@ public class AdminController {
         view.getMovieDialog().setSize(700, 500);
         CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
         cl.show(view.getMovieDialog().getContentPane(), "card2");
-        
+
         setupDialogListeners();
-        
+
         view.getMovieDialog().setLocationRelativeTo(view);
         view.getMovieDialog().setVisible(true);
     }
-    
+
     private void setupDialogListeners() {
-        for (ActionListener al : view.getBrowseButton().getActionListeners()) {
-            view.getBrowseButton().removeActionListener(al);
-        }
-        for (ActionListener al : view.getSaveButton().getActionListeners()) {
-            view.getSaveButton().removeActionListener(al);
-        }
-        for (ActionListener al : view.getCancelButton().getActionListeners()) {
-            view.getCancelButton().removeActionListener(al);
+        removeAllListeners(view.getBrowseButton(), view.getSaveButton(), view.getCancelButton());
+        addEnterKeyListeners();
+        setupBrowseListener();
+        setupFileChooserListener();
+        setupSaveListener(null);
+        setupCancelListener();
+    }
+
+    private void removeAllListeners(javax.swing.JButton... buttons) {
+        for (javax.swing.JButton btn : buttons) {
+            for (ActionListener al : btn.getActionListeners()) {
+                btn.removeActionListener(al);
+            }
         }
         for (ActionListener al : view.getFileChooser().getActionListeners()) {
             view.getFileChooser().removeActionListener(al);
         }
-        
-        addEnterKeyListeners();
-        
-        view.getBrowseButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
-                cl.show(view.getMovieDialog().getContentPane(), "card3");
-            }
+    }
+
+    private void setupBrowseListener() {
+        view.getBrowseButton().addActionListener(e -> {
+            CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
+            cl.show(view.getMovieDialog().getContentPane(), "card3");
         });
-        
-        view.getFileChooser().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (e.getActionCommand().equals(javax.swing.JFileChooser.APPROVE_SELECTION)) {
-                    String fileName = view.getFileChooser().getSelectedFile().getName();
-                    view.getImageLabel().setText(fileName);
-                    CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
-                    cl.show(view.getMovieDialog().getContentPane(), "card2");
-                } else if (e.getActionCommand().equals(javax.swing.JFileChooser.CANCEL_SELECTION)) {
-                    CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
-                    cl.show(view.getMovieDialog().getContentPane(), "card2");
+    }
+
+    private void setupFileChooserListener() {
+        view.getFileChooser().addActionListener(e -> {
+            if (e.getActionCommand().equals(javax.swing.JFileChooser.APPROVE_SELECTION)) {
+                String fileName = view.getFileChooser().getSelectedFile().getName();
+                view.getImageLabel().setText(fileName);
+            }
+            CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
+            cl.show(view.getMovieDialog().getContentPane(), "card2");
+        });
+    }
+
+    private void setupSaveListener(Movie movieToUpdate) {
+        view.getSaveButton().addActionListener(e -> {
+            if (validateForm()) {
+                String imagePath = movieToUpdate != null ? movieToUpdate.getImagePath() : "";
+                if (view.getFileChooser().getSelectedFile() != null) {
+                    imagePath = copyImageToPosters(view.getFileChooser().getSelectedFile().getAbsolutePath());
                 }
-            }
-        });
-        
-        view.getSaveButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (validateForm()) {
-                    String imagePath = copyImageToPosters(view.getFileChooser().getSelectedFile() != null ? view.getFileChooser().getSelectedFile().getAbsolutePath() : "");
+
+                if (movieToUpdate == null) {
                     Movie movie = new Movie(
                         view.getMovieNameField().getText().trim(),
                         view.getDirectorField().getText().trim(),
@@ -281,21 +290,28 @@ public class AdminController {
                         imagePath
                     );
                     movieList.add(movie);
-                    saveMoviesToFile();
-                    loadMovieTable();
-                    view.getMovieDialog().dispose();
                     JOptionPane.showMessageDialog(view, "Movie added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                } else {
+                    movieToUpdate.setName(view.getMovieNameField().getText().trim());
+                    movieToUpdate.setDirector(view.getDirectorField().getText().trim());
+                    movieToUpdate.setGenre((String) view.getGenreCombo().getSelectedItem());
+                    movieToUpdate.setLanguage((String) view.getLanguageCombo().getSelectedItem());
+                    movieToUpdate.setDuration(view.getDurationField().getText().trim());
+                    movieToUpdate.setRating((String) view.getRatingCombo().getSelectedItem());
+                    movieToUpdate.setImagePath(imagePath);
+                    JOptionPane.showMessageDialog(view, "Movie updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
                 }
-            }
-        });
-        
-        view.getCancelButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
+                saveMoviesToFile();
+                loadMovieTable();
                 view.getMovieDialog().dispose();
             }
         });
     }
-    
+
+    private void setupCancelListener() {
+        view.getCancelButton().addActionListener(e -> view.getMovieDialog().dispose());
+    }
+
     private boolean validateForm() {
         if (view.getMovieNameField().getText().trim().isEmpty()) {
             JOptionPane.showMessageDialog(view, "Movie name is required!", "Validation Error", JOptionPane.ERROR_MESSAGE);
@@ -323,7 +339,7 @@ public class AdminController {
         }
         return true;
     }
-    
+
     private String copyImageToPosters(String sourcePath) {
         if (sourcePath.isEmpty()) {
             return "";
@@ -370,7 +386,7 @@ public class AdminController {
         }
 
         Movie selectedMovie = movieList.get(selectedRow);
-        
+
         view.getMovieNameField().setText(selectedMovie.getName());
         view.getDirectorField().setText(selectedMovie.getDirector());
         view.getGenreCombo().setSelectedItem(selectedMovie.getGenre());
@@ -382,79 +398,22 @@ public class AdminController {
         view.getMovieDialog().setSize(700, 500);
         CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
         cl.show(view.getMovieDialog().getContentPane(), "card2");
-        
+
         setupUpdateDialogListeners(selectedMovie);
-        
+
         view.getMovieDialog().setLocationRelativeTo(view);
         view.getMovieDialog().setVisible(true);
     }
-    
+
     private void setupUpdateDialogListeners(final Movie selectedMovie) {
-        for (ActionListener al : view.getBrowseButton().getActionListeners()) {
-            view.getBrowseButton().removeActionListener(al);
-        }
-        for (ActionListener al : view.getSaveButton().getActionListeners()) {
-            view.getSaveButton().removeActionListener(al);
-        }
-        for (ActionListener al : view.getCancelButton().getActionListeners()) {
-            view.getCancelButton().removeActionListener(al);
-        }
-        for (ActionListener al : view.getFileChooser().getActionListeners()) {
-            view.getFileChooser().removeActionListener(al);
-        }
-        
+        removeAllListeners(view.getBrowseButton(), view.getSaveButton(), view.getCancelButton());
         addEnterKeyListeners();
-        
-        view.getBrowseButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
-                cl.show(view.getMovieDialog().getContentPane(), "card3");
-            }
-        });
-        
-        view.getFileChooser().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (e.getActionCommand().equals(javax.swing.JFileChooser.APPROVE_SELECTION)) {
-                    String fileName = view.getFileChooser().getSelectedFile().getName();
-                    view.getImageLabel().setText(fileName);
-                    CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
-                    cl.show(view.getMovieDialog().getContentPane(), "card2");
-                } else if (e.getActionCommand().equals(javax.swing.JFileChooser.CANCEL_SELECTION)) {
-                    CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
-                    cl.show(view.getMovieDialog().getContentPane(), "card2");
-                }
-            }
-        });
-        
-        view.getSaveButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (validateForm()) {
-                    String imagePath = selectedMovie.getImagePath();
-                    if (view.getFileChooser().getSelectedFile() != null) {
-                        imagePath = copyImageToPosters(view.getFileChooser().getSelectedFile().getAbsolutePath());
-                    }
-                    selectedMovie.setName(view.getMovieNameField().getText().trim());
-                    selectedMovie.setDirector(view.getDirectorField().getText().trim());
-                    selectedMovie.setGenre((String) view.getGenreCombo().getSelectedItem());
-                    selectedMovie.setLanguage((String) view.getLanguageCombo().getSelectedItem());
-                    selectedMovie.setDuration(view.getDurationField().getText().trim());
-                    selectedMovie.setRating((String) view.getRatingCombo().getSelectedItem());
-                    selectedMovie.setImagePath(imagePath);
-                    saveMoviesToFile();
-                    loadMovieTable();
-                    view.getMovieDialog().dispose();
-                    JOptionPane.showMessageDialog(view, "Movie updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
-                }
-            }
-        });
-        
-        view.getCancelButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                view.getMovieDialog().dispose();
-            }
-        });
+        setupBrowseListener();
+        setupFileChooserListener();
+        setupSaveListener(selectedMovie);
+        setupCancelListener();
     }
-    
+
     private void addEnterKeyListeners() {
         view.getMovieNameField().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
@@ -465,7 +424,7 @@ public class AdminController {
             public void keyReleased(KeyEvent e) {}
             public void keyTyped(KeyEvent e) {}
         });
-        
+
         view.getDirectorField().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -475,7 +434,7 @@ public class AdminController {
             public void keyReleased(KeyEvent e) {}
             public void keyTyped(KeyEvent e) {}
         });
-        
+
         view.getGenreCombo().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -485,7 +444,7 @@ public class AdminController {
             public void keyReleased(KeyEvent e) {}
             public void keyTyped(KeyEvent e) {}
         });
-        
+
         view.getLanguageCombo().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -495,7 +454,7 @@ public class AdminController {
             public void keyReleased(KeyEvent e) {}
             public void keyTyped(KeyEvent e) {}
         });
-        
+
         view.getDurationField().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
@@ -505,7 +464,7 @@ public class AdminController {
             public void keyReleased(KeyEvent e) {}
             public void keyTyped(KeyEvent e) {}
         });
-        
+
         view.getRatingCombo().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {

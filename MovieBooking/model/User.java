@@ -7,6 +7,7 @@ import java.util.List;
 /**
  * User class handles user registration and authentication using file storage
  */
+@SuppressWarnings("unused")
 public class User {
     private String username;
     private String email;

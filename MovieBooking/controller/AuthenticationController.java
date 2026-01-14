@@ -159,7 +159,10 @@ public class AuthenticationController {
         } else if (User.authenticateUser(identifier, password)) {
             JOptionPane.showMessageDialog(view, "User Login Successful!\nWelcome " + identifier, "Success",
                     JOptionPane.INFORMATION_MESSAGE);
-            // TODO: Open user dashboard
+            view.dispose();
+            MovieBookingView movieBookingView = new MovieBookingView();
+            new UserController(movieBookingView);
+            movieBookingView.setVisible(true);
         } else {
             JOptionPane.showMessageDialog(view, "Invalid credentials!", "Login Failed", JOptionPane.ERROR_MESSAGE);
         }
