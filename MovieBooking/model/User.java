@@ -17,7 +17,7 @@ public class User {
     private LocalDate registrationDate;
 
     private static final String USER_FILE = "src/MovieBooking/users.txt";
-    
+
     /**
      *
      * @param username
@@ -30,14 +30,14 @@ public class User {
         this.password = password;
         this.registrationDate = LocalDate.now();
     }
-    
+
     public User(String username, String email, String password, LocalDate registrationDate) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.registrationDate = registrationDate;
     }
-    
+
     // Save user to file
 
     /**
@@ -57,7 +57,7 @@ public class User {
             return false;
         }
     }
-    
+
     // Check if user exists and password matches
 
     /**
@@ -73,21 +73,22 @@ public class User {
                 int firstComma = line.indexOf(',');
                 int secondComma = line.indexOf(',', firstComma + 1);
                 int thirdComma = line.indexOf(',', secondComma + 1);
-                
+
                 if (firstComma != -1 && secondComma != -1) {
                     String username = line.substring(0, firstComma);
                     String email = line.substring(firstComma + 1, secondComma);
                     String userPassword;
-                    
-                    // Handle both old format (username,email,password) and new format (username,email,password,date)
+
+                    // Handle both old format (username,email,password) and new format
+                    // (username,email,password,date)
                     if (thirdComma != -1) {
                         userPassword = line.substring(secondComma + 1, thirdComma);
                     } else {
                         userPassword = line.substring(secondComma + 1);
                     }
-                    
-                    if ((identifier.equals(username) || identifier.equals(email)) 
-                        && password.equals(userPassword)) {
+
+                    if ((identifier.equals(username) || identifier.equals(email))
+                            && password.equals(userPassword)) {
                         return true;
                     }
                 }
@@ -97,7 +98,7 @@ public class User {
         }
         return false;
     }
-    
+
     // Update user password in file
 
     /**
@@ -109,7 +110,7 @@ public class User {
     public static boolean updatePassword(String email, String newPassword) {
         List<String> users = new ArrayList<>();
         boolean userFound = false;
-        
+
         // Read all users
         try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
             String line;
@@ -117,11 +118,11 @@ public class User {
                 int firstComma = line.indexOf(',');
                 int secondComma = line.indexOf(',', firstComma + 1);
                 int thirdComma = line.indexOf(',', secondComma + 1);
-                
+
                 if (firstComma != -1 && secondComma != -1) {
                     String username = line.substring(0, firstComma);
                     String userEmail = line.substring(firstComma + 1, secondComma);
-                    
+
                     if (userEmail.equals(email)) {
                         // Update password for this user, preserve registration date if exists
                         if (thirdComma != -1) {
@@ -141,11 +142,11 @@ public class User {
         } catch (IOException e) {
             return false;
         }
-        
+
         if (!userFound) {
             return false;
         }
-        
+
         // Write all users back to file
         try (FileWriter writer = new FileWriter(USER_FILE)) {
             for (String user : users) {
@@ -156,7 +157,7 @@ public class User {
             return false;
         }
     }
-    
+
     // Check if username or email already exists
 
     /**
@@ -207,8 +208,9 @@ public class User {
                     String email = line.substring(firstComma + 1, secondComma);
                     String password;
                     LocalDate registrationDate = null;
-                    
-                    // Handle both old format (username,email,password) and new format (username,email,password,date)
+
+                    // Handle both old format (username,email,password) and new format
+                    // (username,email,password,date)
                     if (thirdComma != -1) {
                         password = line.substring(secondComma + 1, thirdComma);
                         String dateStr = line.substring(thirdComma + 1).trim();
@@ -249,5 +251,84 @@ public class User {
 
     public LocalDate getRegistrationDate() {
         return registrationDate;
+    }
+
+    public static boolean updateUser(String oldEmail, String newUsername, String newEmail, String newPassword) {
+        List<String> lines = new ArrayList<>();
+        boolean found = false;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 3) {
+                    String username = parts[0];
+                    String email = parts[1];
+                    String password = parts[2];
+                    String regDate = parts.length > 3 ? parts[3] : LocalDate.now().toString();
+
+                    if (email.equals(oldEmail)) {
+                        lines.add(String.join(",", newUsername, newEmail, newPassword, regDate));
+                        found = true;
+                    } else {
+                        lines.add(line);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        if (found) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
+                for (String l : lines) {
+                    writer.write(l);
+                    writer.newLine();
+                }
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return false;
+    }
+
+    public static boolean deleteUser(String emailToDelete) {
+        List<String> lines = new ArrayList<>();
+        boolean found = false;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2) {
+                    String email = parts[1];
+                    if (email.equals(emailToDelete)) {
+                        found = true;
+                        continue;
+                    }
+                    lines.add(line);
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+
+        if (found) {
+            try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
+                for (String l : lines) {
+                    writer.write(l);
+                    writer.newLine();
+                }
+                return true;
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        return false;
     }
 }

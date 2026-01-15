@@ -164,4 +164,46 @@ public class validation {
         return hasUpper && hasDigit && hasSymbol;
     }
 
+    /**
+     *
+     * @param username
+     * @param email
+     * @param password
+     * @param view
+     * @return
+     */
+    public static boolean validateProfileUpdate(String username, String email, String password,
+            javax.swing.JFrame view) {
+        if (username.isEmpty() || email.isEmpty() || password.isEmpty()) {
+            JOptionPane.showMessageDialog(view, "All fields are required!", "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (!isValidUsername(username)) {
+            JOptionPane.showMessageDialog(view, "Username must not contain numbers!", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (!isValidEmail(email)) {
+            JOptionPane.showMessageDialog(view, "Invalid email format!", "Error", JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (password.length() <= 6) {
+            JOptionPane.showMessageDialog(view, "Password must be greater than 6 characters!", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        if (!isValidPassword(password)) {
+            JOptionPane.showMessageDialog(view,
+                    "Password must contain at least one uppercase letter, one number, and one symbol!", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return false;
+        }
+
+        return true;
+    }
+
 }

@@ -26,6 +26,7 @@ public class AdminController {
     private CardLayout cardLayout;
     private ArrayList<Movie> movieList;
     private static final String MOVIE_FILE = "src/MovieBooking/movies.txt";
+    private static final String BOOKING_FILE = "src/MovieBooking/ticket.txt";
     private String currentPage = "home";
     private static final String HOME_CARD = "card3";
     private static final String MOVIES_CARD = "card2";
@@ -43,11 +44,13 @@ public class AdminController {
         initController();
         loadMoviesFromFile();
         loadMovieTable();
+        loadRecentBookings();
         currentPage = "movies";
         cardLayout.show(view.getContentPanel(), MOVIES_CARD);
         activeButton = view.getMoviesButton();
         setActiveButton(view.getMoviesButton());
         configureTable();
+        updateAdminDashboard();
     }
 
     private void configureTable() {
@@ -55,6 +58,7 @@ public class AdminController {
         view.getMovieTable().setRowSelectionAllowed(true);
         view.getMovieTable().setColumnSelectionAllowed(false);
         view.getMovieTable().setDefaultEditor(Object.class, null);
+        view.getJTable3().setDefaultEditor(Object.class, null);
     }
 
     private void initController() {
@@ -115,6 +119,7 @@ public class AdminController {
                     button.setForeground(new java.awt.Color(229, 9, 20));
                 }
             }
+
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 if (button != activeButton) {
                     button.setOpaque(false);
@@ -129,6 +134,7 @@ public class AdminController {
         cardLayout.show(view.getContentPanel(), HOME_CARD);
         currentPage = "home";
         setActiveButton(view.getHomeButton());
+        loadRecentBookings();
     }
 
     private void showMoviesCard() {
@@ -281,16 +287,16 @@ public class AdminController {
 
                 if (movieToUpdate == null) {
                     Movie movie = new Movie(
-                        view.getMovieNameField().getText().trim(),
-                        view.getDirectorField().getText().trim(),
-                        (String) view.getGenreCombo().getSelectedItem(),
-                        (String) view.getLanguageCombo().getSelectedItem(),
-                        view.getDurationField().getText().trim(),
-                        (String) view.getRatingCombo().getSelectedItem(),
-                        imagePath
-                    );
+                            view.getMovieNameField().getText().trim(),
+                            view.getDirectorField().getText().trim(),
+                            (String) view.getGenreCombo().getSelectedItem(),
+                            (String) view.getLanguageCombo().getSelectedItem(),
+                            view.getDurationField().getText().trim(),
+                            (String) view.getRatingCombo().getSelectedItem(),
+                            imagePath);
                     movieList.add(movie);
-                    JOptionPane.showMessageDialog(view, "Movie added successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(view, "Movie added successfully!", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
                 } else {
                     movieToUpdate.setName(view.getMovieNameField().getText().trim());
                     movieToUpdate.setDirector(view.getDirectorField().getText().trim());
@@ -299,7 +305,8 @@ public class AdminController {
                     movieToUpdate.setDuration(view.getDurationField().getText().trim());
                     movieToUpdate.setRating((String) view.getRatingCombo().getSelectedItem());
                     movieToUpdate.setImagePath(imagePath);
-                    JOptionPane.showMessageDialog(view, "Movie updated successfully!", "Success", JOptionPane.INFORMATION_MESSAGE);
+                    JOptionPane.showMessageDialog(view, "Movie updated successfully!", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
                 }
                 saveMoviesToFile();
                 loadMovieTable();
@@ -314,7 +321,8 @@ public class AdminController {
 
     private boolean validateForm() {
         if (view.getMovieNameField().getText().trim().isEmpty()) {
-            JOptionPane.showMessageDialog(view, "Movie name is required!", "Validation Error", JOptionPane.ERROR_MESSAGE);
+            JOptionPane.showMessageDialog(view, "Movie name is required!", "Validation Error",
+                    JOptionPane.ERROR_MESSAGE);
             return false;
         }
         if (view.getDirectorField().getText().trim().isEmpty()) {
@@ -393,7 +401,8 @@ public class AdminController {
         view.getLanguageCombo().setSelectedItem(selectedMovie.getLanguage());
         view.getDurationField().setText(selectedMovie.getDuration());
         view.getRatingCombo().setSelectedItem(selectedMovie.getRating());
-        view.getImageLabel().setText(selectedMovie.getImagePath().isEmpty() ? "No Image Selected" : new File(selectedMovie.getImagePath()).getName());
+        view.getImageLabel().setText(selectedMovie.getImagePath().isEmpty() ? "No Image Selected"
+                : new File(selectedMovie.getImagePath()).getName());
         view.getFileChooser().setSelectedFile(null);
         view.getMovieDialog().setSize(700, 500);
         CardLayout cl = (CardLayout) view.getMovieDialog().getContentPane().getLayout();
@@ -421,8 +430,12 @@ public class AdminController {
                     view.getDirectorField().requestFocus();
                 }
             }
-            public void keyReleased(KeyEvent e) {}
-            public void keyTyped(KeyEvent e) {}
+
+            public void keyReleased(KeyEvent e) {
+            }
+
+            public void keyTyped(KeyEvent e) {
+            }
         });
 
         view.getDirectorField().addKeyListener(new KeyListener() {
@@ -431,8 +444,12 @@ public class AdminController {
                     view.getGenreCombo().requestFocus();
                 }
             }
-            public void keyReleased(KeyEvent e) {}
-            public void keyTyped(KeyEvent e) {}
+
+            public void keyReleased(KeyEvent e) {
+            }
+
+            public void keyTyped(KeyEvent e) {
+            }
         });
 
         view.getGenreCombo().addKeyListener(new KeyListener() {
@@ -441,8 +458,12 @@ public class AdminController {
                     view.getLanguageCombo().requestFocus();
                 }
             }
-            public void keyReleased(KeyEvent e) {}
-            public void keyTyped(KeyEvent e) {}
+
+            public void keyReleased(KeyEvent e) {
+            }
+
+            public void keyTyped(KeyEvent e) {
+            }
         });
 
         view.getLanguageCombo().addKeyListener(new KeyListener() {
@@ -451,8 +472,12 @@ public class AdminController {
                     view.getDurationField().requestFocus();
                 }
             }
-            public void keyReleased(KeyEvent e) {}
-            public void keyTyped(KeyEvent e) {}
+
+            public void keyReleased(KeyEvent e) {
+            }
+
+            public void keyTyped(KeyEvent e) {
+            }
         });
 
         view.getDurationField().addKeyListener(new KeyListener() {
@@ -461,8 +486,12 @@ public class AdminController {
                     view.getRatingCombo().requestFocus();
                 }
             }
-            public void keyReleased(KeyEvent e) {}
-            public void keyTyped(KeyEvent e) {}
+
+            public void keyReleased(KeyEvent e) {
+            }
+
+            public void keyTyped(KeyEvent e) {
+            }
         });
 
         view.getRatingCombo().addKeyListener(new KeyListener() {
@@ -471,8 +500,76 @@ public class AdminController {
                     view.getBrowseButton().requestFocus();
                 }
             }
-            public void keyReleased(KeyEvent e) {}
-            public void keyTyped(KeyEvent e) {}
+
+            public void keyReleased(KeyEvent e) {
+            }
+
+            public void keyTyped(KeyEvent e) {
+            }
         });
+    }
+
+    private void loadRecentBookings() {
+        DefaultTableModel model = (DefaultTableModel) view.getJTable3().getModel();
+        model.setRowCount(0);
+        ArrayList<String[]> allBookings = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(";");
+                if (parts.length >= 10) {
+                    allBookings.add(parts);
+                }
+            }
+        } catch (IOException e) {
+            // File might not exist yet
+        }
+
+        // Fill Admin Home Table (last n bookings, let's say all for now or last 10)
+        // Table columns: User, Movie, Date
+        for (int i = allBookings.size() - 1; i >= 0; i--) {
+            String[] b = allBookings.get(i);
+            model.addRow(new Object[] { b[0], b[1], b[5] });
+        }
+    }
+
+    private static final String USER_FILE = "src/MovieBooking/users.txt";
+
+    private void updateAdminDashboard() {
+        // Total Movies
+        view.getAdminTotalMoviesLabel().setText(String.valueOf(movieList.size()));
+
+        // Total Users & Active Users
+        int userCount = 0;
+        try {
+            userCount = (int) Files.lines(Paths.get(USER_FILE)).count();
+        } catch (IOException e) {
+            System.err.println("Error counting users: " + e.getMessage());
+        }
+        view.getAdminTotalUsersLabel().setText(String.valueOf(userCount));
+        view.getAdminActiveUsersLabel().setText(String.valueOf(userCount));
+
+        // Total Bookings & Revenue
+        int bookingCount = 0;
+        int totalRevenue = 0;
+        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                bookingCount++;
+                String[] parts = line.split(";");
+                if (parts.length >= 10) {
+                    try {
+                        totalRevenue += Integer.parseInt(parts[9].trim());
+                    } catch (NumberFormatException nfe) {
+                        // Ignore invalid price
+                    }
+                }
+            }
+        } catch (IOException e) {
+            System.err.println("Error reading bookings: " + e.getMessage());
+        }
+        view.getAdminTotalBookingsLabel().setText(String.valueOf(bookingCount));
+        view.getAdminTotalRevenueLabel().setText(String.valueOf(totalRevenue));
     }
 }

@@ -30,21 +30,32 @@ public class UserController {
     private ArrayList<Movie> movieList;
     private JPanel dynamicGalleryPanel; // New panel for movies only
     private static final String MOVIE_FILE = "src/MovieBooking/movies.txt";
+    private static final String BOOKING_FILE = "src/MovieBooking/ticket.txt";
+
+    private Movie currentMovie;
+    private Set<javax.swing.JToggleButton> selectedSeats;
+    private javax.swing.JToggleButton selectedTimeBtn;
+    private String selectedDate;
 
     public UserController(MovieBookingView view, String loggedInUserIdentifier) {
         this.view = view;
         this.loggedInUserIdentifier = loggedInUserIdentifier;
         this.activeButtons = new HashSet<>();
+        this.selectedSeats = new HashSet<>();
         this.movieList = new ArrayList<>();
         java.awt.CardLayout cl = (java.awt.CardLayout) view.getContentPane().getLayout();
         cl.show(view.getContentPane(), "card3");
 
         initBrowsePageLayout();
         initUserController();
+        initBookingListeners();
         updateWelcomeBar();
+        configureTables();
         loadMoviesFromFile(); // Ensure movies are loaded
         populateFilters(true); // Force "all" selection on first load
         showUserHome();
+        refreshBookingTables();
+        updateUserDashboard();
     }
 
     private void initUserController() {
@@ -62,6 +73,30 @@ public class UserController {
             setupPageButtons(buttons[0], buttons[1], buttons[2], buttons[3], buttons[4]);
         }
         initSearchAndFilters();
+        initProfileButtons();
+    }
+
+    private void initProfileButtons() {
+        view.getSignupbutton1().addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleUpdateProfile();
+            }
+        });
+        view.getSignupbutton2().addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleDeleteAccount();
+            }
+        });
+        view.getCloseTicketButton().addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                refreshBookingTables();
+            }
+        });
+        view.getViewTicketButton().addActionListener(new ActionListener() {
+            public void actionPerformed(ActionEvent e) {
+                handleViewTicket();
+            }
+        });
     }
 
     private void setupPageButtons(javax.swing.JButton homeBtn, javax.swing.JButton moviesBtn,
@@ -137,8 +172,75 @@ public class UserController {
     }
 
     private void showProfile() {
+        User user = User.getUserDetails(loggedInUserIdentifier);
+        if (user != null) {
+            view.getUsernameTextField().setText(user.getUsername());
+            view.getEmailTextField6().setText(user.getEmail());
+            view.getPasswordTextField1().setText(user.getPassword());
+        }
+
         showCard("card5", view.getUsersButton2(), view.getUsersButton4(), view.getUsersButton6(),
                 view.getUsersButton8());
+    }
+
+    private void handleUpdateProfile() {
+        String newUsername = view.getUsernameTextField().getText().trim();
+        String newEmail = view.getEmailTextField6().getText().trim();
+        String newPassword = view.getPasswordTextField1().getText().trim();
+
+        if (!MovieBooking.model.validation.validateProfileUpdate(newUsername, newEmail, newPassword, view)) {
+            return;
+        }
+
+        User user = User.getUserDetails(loggedInUserIdentifier);
+        if (user == null) {
+            JOptionPane.showMessageDialog(view, "User not found.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int confirm = JOptionPane.showConfirmDialog(view, "Are you sure you want to update your profile?",
+                "Update Confirmation", JOptionPane.YES_NO_OPTION);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (User.updateUser(user.getEmail(), newUsername, newEmail, newPassword)) {
+                JOptionPane.showMessageDialog(view, "Profile updated successfully!", "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                loggedInUserIdentifier = newEmail; // Update identifier in case email changed
+                updateWelcomeBar();
+                showProfile();
+            } else {
+                JOptionPane.showMessageDialog(view, "Failed to update profile.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
+    }
+
+    private void handleDeleteAccount() {
+        int confirm = JOptionPane.showConfirmDialog(view,
+                "Are you sure you want to delete your account? This action cannot be undone.",
+                "Delete Account Confirmation", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+
+        if (confirm == JOptionPane.YES_OPTION) {
+            String password = JOptionPane.showInputDialog(view, "Please enter your password to confirm deletion:");
+            if (password == null)
+                return;
+
+            User user = User.getUserDetails(loggedInUserIdentifier);
+            if (user != null && user.getPassword().equals(password)) {
+                if (User.deleteUser(user.getEmail())) {
+                    JOptionPane.showMessageDialog(view, "Account deleted successfully.", "Success",
+                            JOptionPane.INFORMATION_MESSAGE);
+                    view.dispose();
+                    AuthenticationView authView = new AuthenticationView();
+                    new AuthenticationController(authView);
+                    authView.setVisible(true);
+                } else {
+                    JOptionPane.showMessageDialog(view, "Failed to delete account.", "Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                JOptionPane.showMessageDialog(view, "Incorrect password.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 
     private void showCard(String cardName, javax.swing.JButton... buttons) {
@@ -191,17 +293,6 @@ public class UserController {
                 view.getMemberSinceLabel().setText("Member Since: " + user.getRegistrationDate().format(dateFormatter));
             } else {
                 view.getMemberSinceLabel().setText("Member Since: " + today.format(dateFormatter));
-            }
-
-            // Update profile page welcome bar (if it exists)
-            view.getProfileWelcomeLabel().setText("Welcome " + user.getUsername());
-            view.getProfileEmailLabel().setText(user.getEmail());
-            view.getProfileDateLabel().setText("Today's Date: " + today.format(dateFormatter));
-            if (user.getRegistrationDate() != null) {
-                view.getProfileMemberSinceLabel()
-                        .setText("Member Since: " + user.getRegistrationDate().format(dateFormatter));
-            } else {
-                view.getProfileMemberSinceLabel().setText("Member Since: " + today.format(dateFormatter));
             }
         }
     }
@@ -520,6 +611,10 @@ public class UserController {
         bookBtn.setFont(new java.awt.Font("Segoe UI", 1, 12));
         bookBtn.setPreferredSize(new java.awt.Dimension(100, 30));
         bookBtn.setFocusPainted(false);
+        bookBtn.addActionListener(e -> {
+            this.currentMovie = movie;
+            showBookingDialog();
+        });
 
         // Container to center the button horizontally
         javax.swing.JPanel buttonContainer = new javax.swing.JPanel(
@@ -544,5 +639,332 @@ public class UserController {
         panel.add(detailPanel, java.awt.BorderLayout.CENTER);
 
         return panel;
+    }
+
+    private void showBookingDialog() {
+        selectedSeats.clear();
+        selectedTimeBtn = null;
+        resetBookingUI();
+        view.getPriceLabel().setText("0");
+        java.awt.CardLayout cl = (java.awt.CardLayout) view.getBookingDialog().getContentPane().getLayout();
+        cl.show(view.getBookingDialog().getContentPane(), "card2");
+        view.getBookingDialog().pack();
+        view.getBookingDialog().setLocationRelativeTo(view);
+        view.getMovieNameLabel().setText(currentMovie.getName());
+        view.getBookingDialog().setVisible(true);
+    }
+
+    private void resetBookingUI() {
+        javax.swing.JToggleButton[] allSeats = {
+                view.getSeatA1(), view.getSeatA2(), view.getSeatA3(), view.getSeatA4(), view.getSeatA5(),
+                view.getSeatA6(),
+                view.getSeatA7(), view.getSeatA8(),
+                view.getSeatB1(), view.getSeatB2(), view.getSeatB3(), view.getSeatB4(), view.getSeatB5(),
+                view.getSeatB6(),
+                view.getSeatB7(), view.getSeatB8(),
+                view.getSeatC1(), view.getSeatC2(), view.getSeatC3(), view.getSeatC4(), view.getSeatC5(),
+                view.getSeatC6(),
+                view.getSeatC7(), view.getSeatC8(),
+                view.getSeatD1(), view.getSeatD2(), view.getSeatD3(), view.getSeatD4(), view.getSeatD5(),
+                view.getSeatD6(),
+                view.getSeatD7(), view.getSeatD8()
+        };
+        for (javax.swing.JToggleButton seat : allSeats) {
+            seat.setSelected(false);
+            seat.setBackground(null);
+        }
+        javax.swing.JToggleButton[] timeBtns = { view.getTimeBtn1(), view.getTimeBtn2(), view.getTimeBtn3(),
+                view.getTimeBtn4() };
+        for (javax.swing.JToggleButton btn : timeBtns) {
+            btn.setSelected(false);
+            btn.setBackground(null);
+        }
+        view.getTodayButton().setSelected(false);
+        view.getTodayButton().setBackground(null);
+        view.getTomorrowButton().setSelected(false);
+        view.getTomorrowButton().setBackground(null);
+        selectedDate = null;
+    }
+
+    private void initBookingListeners() {
+        javax.swing.JToggleButton[] allSeats = {
+                view.getSeatA1(), view.getSeatA2(), view.getSeatA3(), view.getSeatA4(), view.getSeatA5(),
+                view.getSeatA6(),
+                view.getSeatA7(), view.getSeatA8(),
+                view.getSeatB1(), view.getSeatB2(), view.getSeatB3(), view.getSeatB4(), view.getSeatB5(),
+                view.getSeatB6(),
+                view.getSeatB7(), view.getSeatB8(),
+                view.getSeatC1(), view.getSeatC2(), view.getSeatC3(), view.getSeatC4(), view.getSeatC5(),
+                view.getSeatC6(),
+                view.getSeatC7(), view.getSeatC8(),
+                view.getSeatD1(), view.getSeatD2(), view.getSeatD3(), view.getSeatD4(), view.getSeatD5(),
+                view.getSeatD6(),
+                view.getSeatD7(), view.getSeatD8()
+        };
+        for (javax.swing.JToggleButton seat : allSeats) {
+            seat.addActionListener(e -> handleSeatSelection(seat));
+        }
+
+        javax.swing.JToggleButton[] timeBtns = { view.getTimeBtn1(), view.getTimeBtn2(), view.getTimeBtn3(),
+                view.getTimeBtn4() };
+        for (javax.swing.JToggleButton btn : timeBtns) {
+            btn.addActionListener(e -> handleTimeSelection(btn));
+        }
+
+        view.getSeatTypeCombo().addActionListener(e -> updateTotalPrice());
+
+        view.getCancelBookingButton().addActionListener(e -> view.getBookingDialog().setVisible(false));
+
+        // Date selection listeners
+        view.getTodayButton().addActionListener(e -> handleDateSelection(view.getTodayButton(), "Today"));
+        view.getTomorrowButton().addActionListener(e -> handleDateSelection(view.getTomorrowButton(), "Tomorrow"));
+
+        view.getGenerateTicketButton().addActionListener(e -> {
+            if (selectedSeats.isEmpty() || selectedTimeBtn == null || selectedDate == null) {
+                JOptionPane.showMessageDialog(view.getBookingDialog(),
+                        "Please select seats, a time, and a date.",
+                        "Incomplete Selection", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            populateTicket();
+            // Transition to ticket view
+            java.awt.CardLayout cl = (java.awt.CardLayout) view.getBookingDialog().getContentPane().getLayout();
+            cl.show(view.getBookingDialog().getContentPane(), "card3");
+        });
+    }
+
+    private void handleDateSelection(javax.swing.JToggleButton btn, String dateType) {
+        boolean isSelected = btn.isSelected();
+
+        view.getTodayButton().setSelected(false);
+        view.getTodayButton().setBackground(null);
+        view.getTomorrowButton().setSelected(false);
+        view.getTomorrowButton().setBackground(null);
+
+        if (isSelected) {
+            btn.setSelected(true);
+            btn.setBackground(new java.awt.Color(153, 255, 153)); // Light green for selected date
+
+            LocalDate date = LocalDate.now();
+            if (dateType.equals("Tomorrow")) {
+                date = date.plusDays(1);
+            }
+            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
+            selectedDate = date.format(formatter);
+        } else {
+            selectedDate = null;
+        }
+    }
+
+    private void populateTicket() {
+        view.getMovieNameLabel().setText("Movie: " + currentMovie.getName());
+        view.getTicketDateLabel().setText("Date: " + selectedDate);
+        view.getTicketTimeLabel().setText("Time: " + selectedTimeBtn.getText());
+
+        StringBuilder seatsStr = new StringBuilder("Seat: ");
+        TreeSet<String> seatNames = new TreeSet<>();
+        for (javax.swing.JToggleButton seat : selectedSeats) {
+            seatNames.add(seat.getText());
+        }
+        seatsStr.append(String.join(", ", seatNames));
+        view.getTicketSeatLabel().setText(seatsStr.toString());
+
+        view.getTicketSeatTypeLabel().setText("Seat Type: " + view.getSeatTypeCombo().getSelectedItem());
+        view.getTicketPriceLabel().setText("Price: $" + view.getPriceLabel().getText());
+
+        saveBooking();
+        refreshBookingTables();
+    }
+
+    private void saveBooking() {
+        try (PrintWriter writer = new PrintWriter(new FileWriter(BOOKING_FILE, true))) {
+            StringBuilder seatsStr = new StringBuilder();
+            TreeSet<String> seatNames = new TreeSet<>();
+            for (javax.swing.JToggleButton seat : selectedSeats) {
+                seatNames.add(seat.getText());
+            }
+            seatsStr.append(String.join(", ", seatNames));
+
+            String bookingData = String.join(";",
+                    loggedInUserIdentifier,
+                    currentMovie.getName(),
+                    currentMovie.getGenre(),
+                    currentMovie.getLanguage(),
+                    currentMovie.getRating(),
+                    selectedDate,
+                    selectedTimeBtn.getText(),
+                    seatsStr.toString(),
+                    (String) view.getSeatTypeCombo().getSelectedItem(),
+                    view.getPriceLabel().getText());
+            writer.println(bookingData);
+            JOptionPane.showMessageDialog(view, "Booking saved to " + BOOKING_FILE, "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(view, "Error saving booking!", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void refreshBookingTables() {
+        javax.swing.table.DefaultTableModel userBookingModel = (javax.swing.table.DefaultTableModel) view.getJTable4()
+                .getModel();
+        javax.swing.table.DefaultTableModel homeBookingModel = (javax.swing.table.DefaultTableModel) view.getJTable1()
+                .getModel();
+
+        userBookingModel.setRowCount(0);
+        homeBookingModel.setRowCount(0);
+
+        ArrayList<String[]> allBookings = new ArrayList<>();
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(";");
+                if (parts.length >= 10 && parts[0].equalsIgnoreCase(loggedInUserIdentifier)) {
+                    allBookings.add(parts);
+                }
+            }
+        } catch (IOException e) {
+            // File might not exist yet, which is fine
+        }
+
+        // Fill My Booking Table (all bookings for this user)
+        // Order by latest first (reverse order of file)
+        for (int i = allBookings.size() - 1; i >= 0; i--) {
+            String[] b = allBookings.get(i);
+            // Table columns: Name, Genre, Language, Rated, Date
+            userBookingModel.addRow(new Object[] { b[1], b[2], b[3], b[4], b[5] });
+        }
+
+        // Fill Home Recent Bookings (top 3)
+        int count = 0;
+        for (int i = allBookings.size() - 1; i >= 0 && count < 3; i--) {
+            String[] b = allBookings.get(i);
+            // Table columns: Name, Genre, Language, Rated
+            homeBookingModel.addRow(new Object[] { b[1], b[2], b[3], b[4] });
+            count++;
+        }
+        updateUserDashboard();
+    }
+
+    private void handleSeatSelection(javax.swing.JToggleButton seat) {
+        if (seat.isSelected()) {
+            selectedSeats.add(seat);
+            seat.setBackground(new java.awt.Color(153, 255, 153)); // Light green for selected
+        } else {
+            selectedSeats.remove(seat);
+            seat.setBackground(null);
+        }
+        updateTotalPrice();
+    }
+
+    private void handleTimeSelection(javax.swing.JToggleButton btn) {
+        if (selectedTimeBtn != null) {
+            selectedTimeBtn.setSelected(false);
+            selectedTimeBtn.setBackground(null);
+        }
+        if (btn.isSelected()) {
+            selectedTimeBtn = btn;
+            btn.setBackground(new java.awt.Color(255, 204, 153)); // Light orange for selected time
+        } else {
+            selectedTimeBtn = null;
+        }
+    }
+
+    private void updateTotalPrice() {
+        int basePrice = 0;
+        String seatType = (String) view.getSeatTypeCombo().getSelectedItem();
+        if ("Standard Seat".equals(seatType))
+            basePrice = 185;
+        else if ("Reclinear Seat".equals(seatType))
+            basePrice = 225;
+        else if ("Luxury Seat".equals(seatType))
+            basePrice = 300;
+
+        int total = selectedSeats.size() * basePrice;
+        view.getPriceLabel().setText(String.valueOf(total));
+    }
+
+    private void configureTables() {
+        view.getJTable1().setDefaultEditor(Object.class, null);
+        view.getJTable4().setDefaultEditor(Object.class, null);
+    }
+
+    private void handleViewTicket() {
+        int selectedRow = view.getJTable4().getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(view, "Please select a booking to view!", "No Selection",
+                    javax.swing.JOptionPane.WARNING_MESSAGE);
+            return;
+        }
+
+        ArrayList<String[]> userBookings = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(";");
+                if (parts.length >= 10 && parts[0].equalsIgnoreCase(loggedInUserIdentifier)) {
+                    userBookings.add(parts);
+                }
+            }
+        } catch (IOException e) {
+            JOptionPane.showMessageDialog(view, "Error reading bookings!", "Error",
+                    javax.swing.JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        int dataIndex = userBookings.size() - 1 - selectedRow;
+        if (dataIndex < 0 || dataIndex >= userBookings.size()) {
+            return;
+        }
+
+        String[] b = userBookings.get(dataIndex);
+
+        // Populate labels
+        view.getMovieNameLabel().setText("Movie: " + b[1]);
+        view.getTicketDateLabel().setText("Date: " + b[5]);
+        view.getTicketTimeLabel().setText("Time: " + b[6]);
+        view.getTicketSeatLabel().setText("Seat: " + b[7]);
+        view.getTicketSeatTypeLabel().setText("Seat Type: " + b[8]);
+        view.getTicketPriceLabel().setText("Price: " + b[9]);
+
+        // Show dialog and transition to ticket card (card3)
+        java.awt.CardLayout cl = (java.awt.CardLayout) view.getBookingDialog().getContentPane().getLayout();
+        cl.show(view.getBookingDialog().getContentPane(), "card3");
+        view.getBookingDialog().pack();
+        view.getBookingDialog().setLocationRelativeTo(view);
+        view.getBookingDialog().setVisible(true);
+    }
+
+    private void updateUserDashboard() {
+        // Total Movies
+        view.getUserTotalMoviesLabel().setText(String.valueOf(movieList.size()));
+
+        // Total Bookings and Money Spent for User
+        int bookingCount = 0;
+        double totalSpent = 0.0;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty())
+                    continue;
+                String[] parts = line.split(";");
+                // parts[0] is userIdentifier
+                if (parts.length >= 10 && parts[0].equalsIgnoreCase(loggedInUserIdentifier)) {
+                    bookingCount++;
+                    try {
+                        double price = Double.parseDouble(parts[9].trim());
+                        totalSpent += price;
+                    } catch (NumberFormatException e) {
+                        // Ignore invalid price
+                    }
+                }
+            }
+        } catch (IOException e) {
+            // File might not exist yet or error reading
+        }
+
+        view.getUserBookingCountLabel().setText(String.valueOf(bookingCount));
+        view.getMoneySpentOnTicketLabel().setText(String.valueOf((int) totalSpent));
     }
 }
