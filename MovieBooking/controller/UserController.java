@@ -14,14 +14,17 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.ArrayList;
+import java.util.List;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 
 import MovieBooking.model.User;
 import MovieBooking.model.Movie;
+import MovieBooking.model.Ticket;
 import MovieBooking.view.MovieBookingView;
 import MovieBooking.view.AuthenticationView;
+import MovieBooking.controller.AuthenticationController;
 
 public class UserController {
     private MovieBookingView view;
@@ -30,7 +33,6 @@ public class UserController {
     private ArrayList<Movie> movieList;
     private JPanel dynamicGalleryPanel; // New panel for movies only
     private static final String MOVIE_FILE = "src/MovieBooking/movies.txt";
-    private static final String BOOKING_FILE = "src/MovieBooking/ticket.txt";
 
     private Movie currentMovie;
     private Set<javax.swing.JToggleButton> selectedSeats;
@@ -73,6 +75,7 @@ public class UserController {
             setupPageButtons(buttons[0], buttons[1], buttons[2], buttons[3], buttons[4]);
         }
         initSearchAndFilters();
+        initMyBookingListeners();
         initProfileButtons();
     }
 
@@ -396,7 +399,7 @@ public class UserController {
         JPanel headerPanel = new JPanel();
         headerPanel.setBackground(new java.awt.Color(249, 249, 249));
         headerPanel.setLayout(new javax.swing.BoxLayout(headerPanel, javax.swing.BoxLayout.Y_AXIS));
-        headerPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 26, 10, 26));
+        headerPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(10, 26, 10, 0));
 
         // Row 1: Title
         if (browseTitle == null) {
@@ -456,6 +459,7 @@ public class UserController {
         dynamicGalleryPanel.setBackground(new java.awt.Color(249, 249, 249));
         // Exactly 2 columns
         dynamicGalleryPanel.setLayout(new java.awt.GridLayout(0, 2, 30, 30));
+        dynamicGalleryPanel.setBorder(javax.swing.BorderFactory.createEmptyBorder(0, 26, 0, 26));
 
         mainPanel.add(headerPanel, java.awt.BorderLayout.NORTH);
         mainPanel.add(dynamicGalleryPanel, java.awt.BorderLayout.CENTER);
@@ -777,63 +781,39 @@ public class UserController {
     }
 
     private void saveBooking() {
-        try (PrintWriter writer = new PrintWriter(new FileWriter(BOOKING_FILE, true))) {
-            StringBuilder seatsStr = new StringBuilder();
-            TreeSet<String> seatNames = new TreeSet<>();
-            for (javax.swing.JToggleButton seat : selectedSeats) {
-                seatNames.add(seat.getText());
-            }
-            seatsStr.append(String.join(", ", seatNames));
+        StringBuilder seatsStr = new StringBuilder();
+        TreeSet<String> seatNames = new TreeSet<>();
+        for (javax.swing.JToggleButton seat : selectedSeats) {
+            seatNames.add(seat.getText());
+        }
+        seatsStr.append(String.join(", ", seatNames));
 
-            String bookingData = String.join(";",
-                    loggedInUserIdentifier,
-                    currentMovie.getName(),
-                    currentMovie.getGenre(),
-                    currentMovie.getLanguage(),
-                    currentMovie.getRating(),
-                    selectedDate,
-                    selectedTimeBtn.getText(),
-                    seatsStr.toString(),
-                    (String) view.getSeatTypeCombo().getSelectedItem(),
-                    view.getPriceLabel().getText());
-            writer.println(bookingData);
-            JOptionPane.showMessageDialog(view, "Booking saved to " + BOOKING_FILE, "Success",
-                    JOptionPane.INFORMATION_MESSAGE);
-        } catch (IOException e) {
+        String bookingData = String.join(";",
+                loggedInUserIdentifier,
+                currentMovie.getName(),
+                currentMovie.getGenre(),
+                currentMovie.getLanguage(),
+                currentMovie.getRating(),
+                selectedDate,
+                selectedTimeBtn.getText(),
+                seatsStr.toString(),
+                (String) view.getSeatTypeCombo().getSelectedItem(),
+                view.getPriceLabel().getText());
+
+        if (Ticket.saveBooking(bookingData)) {
+            // Message removed as per user request
+        } else {
             JOptionPane.showMessageDialog(view, "Error saving booking!", "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
     private void refreshBookingTables() {
-        javax.swing.table.DefaultTableModel userBookingModel = (javax.swing.table.DefaultTableModel) view.getJTable4()
-                .getModel();
+        List<String[]> allBookings = getAllUserBookings();
+        populateMyBookingTable(new ArrayList<>(allBookings));
+
         javax.swing.table.DefaultTableModel homeBookingModel = (javax.swing.table.DefaultTableModel) view.getJTable1()
                 .getModel();
-
-        userBookingModel.setRowCount(0);
         homeBookingModel.setRowCount(0);
-
-        ArrayList<String[]> allBookings = new ArrayList<>();
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(";");
-                if (parts.length >= 10 && parts[0].equalsIgnoreCase(loggedInUserIdentifier)) {
-                    allBookings.add(parts);
-                }
-            }
-        } catch (IOException e) {
-            // File might not exist yet, which is fine
-        }
-
-        // Fill My Booking Table (all bookings for this user)
-        // Order by latest first (reverse order of file)
-        for (int i = allBookings.size() - 1; i >= 0; i--) {
-            String[] b = allBookings.get(i);
-            // Table columns: Name, Genre, Language, Rated, Date
-            userBookingModel.addRow(new Object[] { b[1], b[2], b[3], b[4], b[5] });
-        }
 
         // Fill Home Recent Bookings (top 3)
         int count = 0;
@@ -844,6 +824,77 @@ public class UserController {
             count++;
         }
         updateUserDashboard();
+    }
+
+    private List<String[]> getAllUserBookings() {
+        return Ticket.getBookingsForUser(loggedInUserIdentifier);
+    }
+
+    private void populateMyBookingTable(ArrayList<String[]> bookings) {
+        javax.swing.table.DefaultTableModel userBookingModel = (javax.swing.table.DefaultTableModel) view.getJTable4()
+                .getModel();
+        userBookingModel.setRowCount(0);
+
+        // Fill My Booking Table
+        for (int i = bookings.size() - 1; i >= 0; i--) {
+            String[] b = bookings.get(i);
+            // Table columns: Name, Genre, Language, Rated, Date
+            userBookingModel.addRow(new Object[] { b[1], b[2], b[3], b[4], b[5] });
+        }
+    }
+
+    private void initMyBookingListeners() {
+        view.getSearchButtonForMyBooking().addActionListener(e -> handleSearchMyBooking());
+        view.getSortByMovieNameButtonMyBooking().addActionListener(e -> handleSortMyBookingByName());
+        view.getSortByDateButtonMyBooking().addActionListener(e -> handleSortMyBookingByDate());
+    }
+
+    private void handleSearchMyBooking() {
+        String query = view.getSearchBarForMyBooking().getText().toLowerCase().trim();
+        List<String[]> all = getAllUserBookings();
+        if (query.isEmpty()) {
+            populateMyBookingTable(new ArrayList<>(all));
+            return;
+        }
+
+        ArrayList<String[]> filtered = new ArrayList<>();
+        for (String[] b : all) {
+            if (b[1].toLowerCase().contains(query)) {
+                filtered.add(b);
+            }
+        }
+        populateMyBookingTable(filtered);
+    }
+
+    private boolean isSortNameAsc = true;
+
+    private void handleSortMyBookingByName() {
+        List<String[]> bookings = new ArrayList<>(getAllUserBookings());
+        bookings.sort((a, b) -> {
+            int res = a[1].compareToIgnoreCase(b[1]);
+            return isSortNameAsc ? res : -res;
+        });
+        isSortNameAsc = !isSortNameAsc;
+        populateMyBookingTable(new ArrayList<>(bookings));
+    }
+
+    private boolean isSortDateAsc = false;
+
+    private void handleSortMyBookingByDate() {
+        List<String[]> bookings = new ArrayList<>(getAllUserBookings());
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMM dd, yyyy");
+        bookings.sort((a, b) -> {
+            try {
+                LocalDate d1 = LocalDate.parse(a[5].trim(), formatter);
+                LocalDate d2 = LocalDate.parse(b[5].trim(), formatter);
+                int res = d1.compareTo(d2);
+                return isSortDateAsc ? res : -res;
+            } catch (Exception e) {
+                return 0;
+            }
+        });
+        isSortDateAsc = !isSortDateAsc;
+        populateMyBookingTable(new ArrayList<>(bookings));
     }
 
     private void handleSeatSelection(javax.swing.JToggleButton seat) {
@@ -897,17 +948,9 @@ public class UserController {
             return;
         }
 
-        ArrayList<String[]> userBookings = new ArrayList<>();
-        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(";");
-                if (parts.length >= 10 && parts[0].equalsIgnoreCase(loggedInUserIdentifier)) {
-                    userBookings.add(parts);
-                }
-            }
-        } catch (IOException e) {
-            JOptionPane.showMessageDialog(view, "Error reading bookings!", "Error",
+        List<String[]> userBookings = Ticket.getBookingsForUser(loggedInUserIdentifier);
+        if (userBookings.isEmpty()) {
+            JOptionPane.showMessageDialog(view, "No bookings found!", "Error",
                     javax.swing.JOptionPane.ERROR_MESSAGE);
             return;
         }
@@ -943,25 +986,15 @@ public class UserController {
         int bookingCount = 0;
         double totalSpent = 0.0;
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.trim().isEmpty())
-                    continue;
-                String[] parts = line.split(";");
-                // parts[0] is userIdentifier
-                if (parts.length >= 10 && parts[0].equalsIgnoreCase(loggedInUserIdentifier)) {
-                    bookingCount++;
-                    try {
-                        double price = Double.parseDouble(parts[9].trim());
-                        totalSpent += price;
-                    } catch (NumberFormatException e) {
-                        // Ignore invalid price
-                    }
-                }
+        List<String[]> userBookings = Ticket.getBookingsForUser(loggedInUserIdentifier);
+        for (String[] parts : userBookings) {
+            bookingCount++;
+            try {
+                double price = Double.parseDouble(parts[9].trim());
+                totalSpent += price;
+            } catch (NumberFormatException e) {
+                // Ignore invalid price
             }
-        } catch (IOException e) {
-            // File might not exist yet or error reading
         }
 
         view.getUserBookingCountLabel().setText(String.valueOf(bookingCount));

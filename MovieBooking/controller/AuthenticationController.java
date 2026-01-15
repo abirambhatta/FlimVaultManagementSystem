@@ -11,6 +11,8 @@ import MovieBooking.model.Admin;
 import MovieBooking.model.User;
 import MovieBooking.view.AuthenticationView;
 import MovieBooking.view.MovieBookingView;
+import MovieBooking.controller.AdminController;
+import MovieBooking.controller.UserController;
 
 /**
  * AuthenticationController handles all authentication with CardLayout
@@ -59,6 +61,7 @@ public class AuthenticationController {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 view.getForgotPasswordButton4().setText("<html><u>Forgot Password?</u></html>");
             }
+
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 view.getForgotPasswordButton4().setText("Forgot Password?");
             }
@@ -80,6 +83,7 @@ public class AuthenticationController {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 view.getBackToLoginButton().setText("<html><u>Back To Login</u></html>");
             }
+
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 view.getBackToLoginButton().setText("Back To Login");
             }
@@ -101,6 +105,7 @@ public class AuthenticationController {
             public void mouseEntered(java.awt.event.MouseEvent evt) {
                 view.getBackToLoginButton1().setText("<html><u>Back To Login</u></html>");
             }
+
             public void mouseExited(java.awt.event.MouseEvent evt) {
                 view.getBackToLoginButton1().setText("Back To Login");
             }
@@ -157,6 +162,13 @@ public class AuthenticationController {
             new AdminController(movieBookingView);
             movieBookingView.setVisible(true);
         } else if (User.authenticateUser(identifier, password)) {
+            // Check if blocked by admin
+            if (User.isUserBlocked(identifier)) {
+                JOptionPane.showMessageDialog(view, "You have been blocked by the admin!", "Access Denied",
+                        JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
             JOptionPane.showMessageDialog(view, "User Login Successful!\nWelcome " + identifier, "Success",
                     JOptionPane.INFORMATION_MESSAGE);
             view.dispose();
@@ -164,7 +176,13 @@ public class AuthenticationController {
             new UserController(movieBookingView, identifier);
             movieBookingView.setVisible(true);
         } else {
-            JOptionPane.showMessageDialog(view, "Invalid credentials!", "Login Failed", JOptionPane.ERROR_MESSAGE);
+            // Check if user exists but is blocked (optional but good for UX)
+            if (User.isUserBlocked(identifier)) {
+                JOptionPane.showMessageDialog(view, "You have been blocked by the admin!", "Access Denied",
+                        JOptionPane.ERROR_MESSAGE);
+            } else {
+                JOptionPane.showMessageDialog(view, "Invalid credentials!", "Login Failed", JOptionPane.ERROR_MESSAGE);
+            }
         }
     }
 

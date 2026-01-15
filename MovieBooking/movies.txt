@@ -1,4 +1,4 @@
-3 Idiots,Rajkumar Hirani,Comedy,Hindi,170 min,PG-13,src/MovieBooking/posters/BookTable_Level0_DFD.drawio.png
+3 Idiots,Rajkumar Hirani,Comedy,Hindi,170 min,PG-13,src/MovieBooking/posters/3idiots.png
 Dangal,Nitesh Tiwari,Biography,Hindi,161 min,PG,
 Avengers: Endgame,Russo Brothers,Action,English,181 min,PG-13,
 The Dark Knight,Christopher Nolan,Action,English,152 min,PG-13,

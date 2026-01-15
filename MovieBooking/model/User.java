@@ -15,6 +15,7 @@ public class User {
     private String email;
     private String password;
     private LocalDate registrationDate;
+    private String status; // "Active" or "Blocked"
 
     private static final String USER_FILE = "src/MovieBooking/users.txt";
 
@@ -29,29 +30,29 @@ public class User {
         this.email = email;
         this.password = password;
         this.registrationDate = LocalDate.now();
+        this.status = "Active";
     }
 
     public User(String username, String email, String password, LocalDate registrationDate) {
+        this(username, email, password, registrationDate, "Active");
+    }
+
+    public User(String username, String email, String password, LocalDate registrationDate, String status) {
         this.username = username;
         this.email = email;
         this.password = password;
         this.registrationDate = registrationDate;
+        this.status = status;
     }
 
     // Save user to file
-
-    /**
-     *
-     * @param username
-     * @param email
-     * @param password
-     * @return
-     */
     public static boolean saveUser(String username, String email, String password) {
         try (FileWriter writer = new FileWriter(USER_FILE, true)) {
             LocalDate registrationDate = LocalDate.now();
             DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-            writer.write(username + "," + email + "," + password + "," + registrationDate.format(formatter) + "\n");
+            // Format: username,email,password,date,status
+            writer.write(
+                    username + "," + email + "," + password + "," + registrationDate.format(formatter) + ",Active\n");
             return true;
         } catch (IOException e) {
             return false;
@@ -59,35 +60,17 @@ public class User {
     }
 
     // Check if user exists and password matches
-
-    /**
-     *
-     * @param identifier
-     * @param password
-     * @return
-     */
     public static boolean authenticateUser(String identifier, String password) {
         try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                int firstComma = line.indexOf(',');
-                int secondComma = line.indexOf(',', firstComma + 1);
-                int thirdComma = line.indexOf(',', secondComma + 1);
+                String[] parts = line.split(",");
+                if (parts.length >= 3) {
+                    String username = parts[0];
+                    String email = parts[1];
+                    String userPassword = parts[2];
 
-                if (firstComma != -1 && secondComma != -1) {
-                    String username = line.substring(0, firstComma);
-                    String email = line.substring(firstComma + 1, secondComma);
-                    String userPassword;
-
-                    // Handle both old format (username,email,password) and new format
-                    // (username,email,password,date)
-                    if (thirdComma != -1) {
-                        userPassword = line.substring(secondComma + 1, thirdComma);
-                    } else {
-                        userPassword = line.substring(secondComma + 1);
-                    }
-
-                    if ((identifier.equals(username) || identifier.equals(email))
+                    if ((identifier.equalsIgnoreCase(username) || identifier.equalsIgnoreCase(email))
                             && password.equals(userPassword)) {
                         return true;
                     }
@@ -99,85 +82,24 @@ public class User {
         return false;
     }
 
-    // Update user password in file
-
     /**
-     *
-     * @param email
-     * @param newPassword
-     * @return
+     * Checks if a user is blocked.
+     * 
+     * @param identifier Username or Email
+     * @return true if blocked
      */
-    public static boolean updatePassword(String email, String newPassword) {
-        List<String> users = new ArrayList<>();
-        boolean userFound = false;
-
-        // Read all users
+    public static boolean isUserBlocked(String identifier) {
         try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                int firstComma = line.indexOf(',');
-                int secondComma = line.indexOf(',', firstComma + 1);
-                int thirdComma = line.indexOf(',', secondComma + 1);
+                String[] parts = line.split(",");
+                if (parts.length >= 5) {
+                    String username = parts[0];
+                    String email = parts[1];
+                    String status = parts[4];
 
-                if (firstComma != -1 && secondComma != -1) {
-                    String username = line.substring(0, firstComma);
-                    String userEmail = line.substring(firstComma + 1, secondComma);
-
-                    if (userEmail.equals(email)) {
-                        // Update password for this user, preserve registration date if exists
-                        if (thirdComma != -1) {
-                            String registrationDate = line.substring(thirdComma + 1);
-                            users.add(username + "," + userEmail + "," + newPassword + "," + registrationDate);
-                        } else {
-                            users.add(username + "," + userEmail + "," + newPassword);
-                        }
-                        userFound = true;
-                    } else {
-                        users.add(line);
-                    }
-                } else {
-                    users.add(line);
-                }
-            }
-        } catch (IOException e) {
-            return false;
-        }
-
-        if (!userFound) {
-            return false;
-        }
-
-        // Write all users back to file
-        try (FileWriter writer = new FileWriter(USER_FILE)) {
-            for (String user : users) {
-                writer.write(user + "\n");
-            }
-            return true;
-        } catch (IOException e) {
-            return false;
-        }
-    }
-
-    // Check if username or email already exists
-
-    /**
-     *
-     * @param username
-     * @param email
-     * @return
-     */
-    public static boolean userExists(String username, String email) {
-        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                int firstComma = line.indexOf(',');
-                int secondComma = line.indexOf(',', firstComma + 1);
-
-                if (firstComma != -1 && secondComma != -1) {
-                    String fileUsername = line.substring(0, firstComma);
-                    String fileEmail = line.substring(firstComma + 1, secondComma);
-
-                    if (fileUsername.equals(username) || fileEmail.equals(email)) {
+                    if ((identifier.equalsIgnoreCase(username) || identifier.equalsIgnoreCase(email))
+                            && "Blocked".equalsIgnoreCase(status)) {
                         return true;
                     }
                 }
@@ -188,45 +110,73 @@ public class User {
         return false;
     }
 
-    // Get user details by identifier (username or email)
+    // Update user password in file
+    public static boolean updatePassword(String email, String newPassword) {
+        List<String> lines = new ArrayList<>();
+        boolean found = false;
 
-    /**
-     *
-     * @param identifier
-     * @return
-     */
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2 && parts[1].equals(email)) {
+                    // Update password, preserve other fields
+                    String username = parts[0];
+                    String date = parts.length > 3 ? parts[3] : LocalDate.now().toString();
+                    String status = parts.length > 4 ? parts[4] : "Active";
+                    lines.add(username + "," + email + "," + newPassword + "," + date + "," + status);
+                    found = true;
+                } else {
+                    lines.add(line);
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+
+        if (found) {
+            return writeLines(lines);
+        }
+        return false;
+    }
+
+    public static boolean userExists(String username, String email) {
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2) {
+                    if (parts[0].equals(username) || parts[1].equals(email)) {
+                        return true;
+                    }
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+        return false;
+    }
+
     public static User getUserDetails(String identifier) {
         try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
             String line;
             while ((line = reader.readLine()) != null) {
-                int firstComma = line.indexOf(',');
-                int secondComma = line.indexOf(',', firstComma + 1);
-                int thirdComma = line.indexOf(',', secondComma + 1);
-
-                if (firstComma != -1 && secondComma != -1) {
-                    String username = line.substring(0, firstComma);
-                    String email = line.substring(firstComma + 1, secondComma);
-                    String password;
-                    LocalDate registrationDate = null;
-
-                    // Handle both old format (username,email,password) and new format
-                    // (username,email,password,date)
-                    if (thirdComma != -1) {
-                        password = line.substring(secondComma + 1, thirdComma);
-                        String dateStr = line.substring(thirdComma + 1).trim();
-                        try {
-                            DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-                            registrationDate = LocalDate.parse(dateStr, formatter);
-                        } catch (Exception e) {
-                            registrationDate = LocalDate.now(); // Default to today if parsing fails
-                        }
-                    } else {
-                        password = line.substring(secondComma + 1);
-                        registrationDate = LocalDate.now(); // Default to today for old format
-                    }
+                String[] parts = line.split(",");
+                if (parts.length >= 3) {
+                    String username = parts[0];
+                    String email = parts[1];
+                    String password = parts[2];
 
                     if (identifier.equals(username) || identifier.equals(email)) {
-                        return new User(username, email, password, registrationDate);
+                        LocalDate date = LocalDate.now();
+                        if (parts.length > 3) {
+                            try {
+                                date = LocalDate.parse(parts[3], DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                            } catch (Exception e) {
+                            }
+                        }
+                        String status = parts.length > 4 ? parts[4] : "Active";
+                        return new User(username, email, password, date, status);
                     }
                 }
             }
@@ -236,7 +186,129 @@ public class User {
         return null;
     }
 
-    // Getters
+    public static boolean updateUser(String oldEmail, String newUsername, String newEmail, String newPassword) {
+        List<String> lines = new ArrayList<>();
+        boolean found = false;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2 && parts[1].equals(oldEmail)) {
+                    String date = parts.length > 3 ? parts[3] : LocalDate.now().toString();
+                    String status = parts.length > 4 ? parts[4] : "Active";
+                    lines.add(newUsername + "," + newEmail + "," + newPassword + "," + date + "," + status);
+                    found = true;
+                } else {
+                    lines.add(line);
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+
+        if (found) {
+            return writeLines(lines);
+        }
+        return false;
+    }
+
+    public static boolean updateStatus(String email, String newStatus) {
+        List<String> lines = new ArrayList<>();
+        boolean found = false;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2 && parts[1].equals(email)) {
+                    // Preserve all fields, update status (index 4) or append it
+                    String username = parts[0];
+                    String password = parts[2];
+                    String date = parts.length > 3 ? parts[3] : LocalDate.now().toString();
+                    lines.add(username + "," + email + "," + password + "," + date + "," + newStatus);
+                    found = true;
+                } else {
+                    lines.add(line);
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+
+        if (found) {
+            return writeLines(lines);
+        }
+        return false;
+    }
+
+    public static boolean deleteUser(String emailToDelete) {
+        List<String> lines = new ArrayList<>();
+        boolean found = false;
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 2) {
+                    if (parts[1].equals(emailToDelete)) {
+                        found = true;
+                        continue; // Skip this line
+                    }
+                    lines.add(line);
+                }
+            }
+        } catch (IOException e) {
+            return false;
+        }
+
+        if (found) {
+            return writeLines(lines);
+        }
+        return false;
+    }
+
+    private static boolean writeLines(List<String> lines) {
+        try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
+            for (String l : lines) {
+                writer.write(l);
+                writer.newLine();
+            }
+            return true;
+        } catch (IOException e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+    // Get all users from the file
+    public static List<User> getAllUsers() {
+        List<User> users = new ArrayList<>();
+        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                String[] parts = line.split(",");
+                if (parts.length >= 3) {
+                    String username = parts[0];
+                    String email = parts[1];
+                    String password = parts[2];
+                    LocalDate date = LocalDate.now();
+                    if (parts.length > 3) {
+                        try {
+                            date = LocalDate.parse(parts[3], DateTimeFormatter.ofPattern("yyyy-MM-dd"));
+                        } catch (Exception e) {
+                        }
+                    }
+                    String status = parts.length > 4 ? parts[4] : "Active";
+                    users.add(new User(username, email, password, date, status));
+                }
+            }
+        } catch (IOException e) {
+            return users;
+        }
+        return users;
+    }
+
     public String getUsername() {
         return username;
     }
@@ -253,82 +325,7 @@ public class User {
         return registrationDate;
     }
 
-    public static boolean updateUser(String oldEmail, String newUsername, String newEmail, String newPassword) {
-        List<String> lines = new ArrayList<>();
-        boolean found = false;
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length >= 3) {
-                    String username = parts[0];
-                    String email = parts[1];
-                    String password = parts[2];
-                    String regDate = parts.length > 3 ? parts[3] : LocalDate.now().toString();
-
-                    if (email.equals(oldEmail)) {
-                        lines.add(String.join(",", newUsername, newEmail, newPassword, regDate));
-                        found = true;
-                    } else {
-                        lines.add(line);
-                    }
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
-        if (found) {
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
-                for (String l : lines) {
-                    writer.write(l);
-                    writer.newLine();
-                }
-                return true;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        return false;
-    }
-
-    public static boolean deleteUser(String emailToDelete) {
-        List<String> lines = new ArrayList<>();
-        boolean found = false;
-
-        try (BufferedReader reader = new BufferedReader(new FileReader(USER_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(",");
-                if (parts.length >= 2) {
-                    String email = parts[1];
-                    if (email.equals(emailToDelete)) {
-                        found = true;
-                        continue;
-                    }
-                    lines.add(line);
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-            return false;
-        }
-
-        if (found) {
-            try (BufferedWriter writer = new BufferedWriter(new FileWriter(USER_FILE))) {
-                for (String l : lines) {
-                    writer.write(l);
-                    writer.newLine();
-                }
-                return true;
-            } catch (IOException e) {
-                e.printStackTrace();
-            }
-        }
-
-        return false;
+    public String getStatus() {
+        return status;
     }
 }

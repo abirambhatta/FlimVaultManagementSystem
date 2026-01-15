@@ -8,13 +8,23 @@ import java.awt.event.ActionListener;
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.time.format.DateTimeFormatter;
 
 import MovieBooking.model.Movie;
+import MovieBooking.model.User;
+import MovieBooking.model.Ticket;
 import MovieBooking.view.MovieBookingView;
 import MovieBooking.view.AuthenticationView;
+import MovieBooking.controller.AuthenticationController;
 
 /**
  *
@@ -23,10 +33,15 @@ import MovieBooking.view.AuthenticationView;
 @SuppressWarnings("unused")
 public class AdminController {
     private MovieBookingView view;
+
     private CardLayout cardLayout;
     private ArrayList<Movie> movieList;
+    private List<User> allUsers; // Cached user list
+
     private static final String MOVIE_FILE = "src/MovieBooking/movies.txt";
     private static final String BOOKING_FILE = "src/MovieBooking/ticket.txt";
+    private static final String USER_FILE = "src/MovieBooking/users.txt";
+
     private String currentPage = "home";
     private static final String HOME_CARD = "card3";
     private static final String MOVIES_CARD = "card2";
@@ -41,14 +56,18 @@ public class AdminController {
         this.view = view;
         this.cardLayout = (CardLayout) view.getContentPanel().getLayout();
         this.movieList = new ArrayList<>();
+        this.allUsers = new ArrayList<>();
+
         initController();
         loadMoviesFromFile();
         loadMovieTable();
         loadRecentBookings();
-        currentPage = "movies";
-        cardLayout.show(view.getContentPanel(), MOVIES_CARD);
-        activeButton = view.getMoviesButton();
-        setActiveButton(view.getMoviesButton());
+
+        // Initialize with default view
+        currentPage = "home";
+        cardLayout.show(view.getContentPanel(), HOME_CARD);
+        activeButton = view.getHomeButton();
+        setActiveButton(view.getHomeButton());
         configureTable();
         updateAdminDashboard();
     }
@@ -58,56 +77,42 @@ public class AdminController {
         view.getMovieTable().setRowSelectionAllowed(true);
         view.getMovieTable().setColumnSelectionAllowed(false);
         view.getMovieTable().setDefaultEditor(Object.class, null);
-        view.getJTable3().setDefaultEditor(Object.class, null);
+
+        view.getJTable3().setDefaultEditor(Object.class, null); // Recent bookings table
+
+        view.getAdminUserTable().setSelectionMode(javax.swing.ListSelectionModel.SINGLE_SELECTION);
+        view.getAdminUserTable().setDefaultEditor(Object.class, null);
     }
 
     private void initController() {
         // Navigation button event handlers
-        view.getHomeButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                showHomeCard();
-            }
-        });
+        view.getHomeButton().addActionListener(e -> showHomeCard());
         addButtonHoverListeners(view.getHomeButton());
 
-        view.getMoviesButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                showMoviesCard();
-            }
-        });
+        view.getMoviesButton().addActionListener(e -> showMoviesCard());
         addButtonHoverListeners(view.getMoviesButton());
 
-        view.getUsersButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                showUsersCard();
-            }
-        });
+        view.getUsersButton().addActionListener(e -> showUsersCard());
         addButtonHoverListeners(view.getUsersButton());
 
-        view.getLogoutButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                performLogout();
-            }
-        });
+        view.getLogoutButton().addActionListener(e -> performLogout());
 
         // Movie CRUD operation button handlers
-        view.getAddButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                addMovie();
-            }
-        });
+        view.getAddButton().addActionListener(e -> addMovie());
+        view.getUpdateButton().addActionListener(e -> updateMovie());
+        view.getDeleteButton().addActionListener(e -> deleteMovie());
 
-        view.getUpdateButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                updateMovie();
-            }
-        });
+        // User Management Event Handlers
+        view.getSearchButtonUserAdmin().addActionListener(e -> handleSearchUser());
+        view.getSortByNameButton().addActionListener(e -> handleSortUser("Name"));
+        view.getSortByBookingButton().addActionListener(e -> handleSortUser("Booking"));
+        view.getSortByDateButton().addActionListener(e -> handleSortUser("Date"));
 
-        view.getDeleteButton().addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                deleteMovie();
-            }
-        });
+        view.getViewUserDetailButton().addActionListener(e -> handleViewUserDetail());
+        view.getBlockUnblockUserButton().addActionListener(e -> handleBlockUnblockUser());
+        view.getDeleteUserButton().addActionListener(e -> handleDeleteUser());
+
+        view.getUserDetailCloseButton().addActionListener(e -> view.getUserDetailDialog().dispose());
     }
 
     private void addButtonHoverListeners(javax.swing.JButton button) {
@@ -135,6 +140,7 @@ public class AdminController {
         currentPage = "home";
         setActiveButton(view.getHomeButton());
         loadRecentBookings();
+        updateAdminDashboard();
     }
 
     private void showMoviesCard() {
@@ -147,6 +153,7 @@ public class AdminController {
         cardLayout.show(view.getContentPanel(), USERS_CARD);
         currentPage = "users";
         setActiveButton(view.getUsersButton());
+        refreshUserList(); // Load fresh data
     }
 
     private void setActiveButton(javax.swing.JButton button) {
@@ -175,6 +182,7 @@ public class AdminController {
         }
     }
 
+    // --- Movie Management Logic (Kept as is) ---
     private void loadMoviesFromFile() {
         movieList.clear();
         try (BufferedReader reader = new BufferedReader(new FileReader(MOVIE_FILE))) {
@@ -221,6 +229,7 @@ public class AdminController {
     }
 
     private void addMovie() {
+        // ... (Existing implementation for prepare dialog)
         view.getMovieNameField().setText("");
         view.getDirectorField().setText("");
         view.getGenreCombo().setSelectedItem(null);
@@ -381,6 +390,8 @@ public class AdminController {
         if (confirm == JOptionPane.YES_OPTION) {
             DefaultTableModel model = (DefaultTableModel) view.getMovieTable().getModel();
             model.removeRow(selectedRow);
+            movieList.remove(selectedRow); // Also remove from list
+            saveMoviesToFile();
             JOptionPane.showMessageDialog(view, "Movie deleted successfully!", "Success",
                     JOptionPane.INFORMATION_MESSAGE);
         }
@@ -438,11 +449,12 @@ public class AdminController {
             }
         });
 
+        // Simplified repeat for brevity as it was in original
+        // Ideally we'd use a helper but sticking to structure
         view.getDirectorField().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
                     view.getGenreCombo().requestFocus();
-                }
             }
 
             public void keyReleased(KeyEvent e) {
@@ -451,12 +463,10 @@ public class AdminController {
             public void keyTyped(KeyEvent e) {
             }
         });
-
         view.getGenreCombo().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
                     view.getLanguageCombo().requestFocus();
-                }
             }
 
             public void keyReleased(KeyEvent e) {
@@ -465,12 +475,10 @@ public class AdminController {
             public void keyTyped(KeyEvent e) {
             }
         });
-
         view.getLanguageCombo().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
                     view.getDurationField().requestFocus();
-                }
             }
 
             public void keyReleased(KeyEvent e) {
@@ -479,12 +487,10 @@ public class AdminController {
             public void keyTyped(KeyEvent e) {
             }
         });
-
         view.getDurationField().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
                     view.getRatingCombo().requestFocus();
-                }
             }
 
             public void keyReleased(KeyEvent e) {
@@ -493,12 +499,10 @@ public class AdminController {
             public void keyTyped(KeyEvent e) {
             }
         });
-
         view.getRatingCombo().addKeyListener(new KeyListener() {
             public void keyPressed(KeyEvent e) {
-                if (e.getKeyCode() == KeyEvent.VK_ENTER) {
+                if (e.getKeyCode() == KeyEvent.VK_ENTER)
                     view.getBrowseButton().requestFocus();
-                }
             }
 
             public void keyReleased(KeyEvent e) {
@@ -512,29 +516,13 @@ public class AdminController {
     private void loadRecentBookings() {
         DefaultTableModel model = (DefaultTableModel) view.getJTable3().getModel();
         model.setRowCount(0);
-        ArrayList<String[]> allBookings = new ArrayList<>();
+        List<String[]> allBookings = Ticket.getAllBookings();
 
-        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                String[] parts = line.split(";");
-                if (parts.length >= 10) {
-                    allBookings.add(parts);
-                }
-            }
-        } catch (IOException e) {
-            // File might not exist yet
-        }
-
-        // Fill Admin Home Table (last n bookings, let's say all for now or last 10)
-        // Table columns: User, Movie, Date
         for (int i = allBookings.size() - 1; i >= 0; i--) {
             String[] b = allBookings.get(i);
             model.addRow(new Object[] { b[0], b[1], b[5] });
         }
     }
-
-    private static final String USER_FILE = "src/MovieBooking/users.txt";
 
     private void updateAdminDashboard() {
         // Total Movies
@@ -551,25 +539,193 @@ public class AdminController {
         view.getAdminActiveUsersLabel().setText(String.valueOf(userCount));
 
         // Total Bookings & Revenue
-        int bookingCount = 0;
+        List<String[]> allBookings = Ticket.getAllBookings();
         int totalRevenue = 0;
-        try (BufferedReader reader = new BufferedReader(new FileReader(BOOKING_FILE))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                bookingCount++;
-                String[] parts = line.split(";");
-                if (parts.length >= 10) {
-                    try {
-                        totalRevenue += Integer.parseInt(parts[9].trim());
-                    } catch (NumberFormatException nfe) {
-                        // Ignore invalid price
-                    }
-                }
+        for (String[] parts : allBookings) {
+            try {
+                totalRevenue += Integer.parseInt(parts[9].trim());
+            } catch (NumberFormatException nfe) {
+                // Ignore invalid price
             }
-        } catch (IOException e) {
-            System.err.println("Error reading bookings: " + e.getMessage());
         }
-        view.getAdminTotalBookingsLabel().setText(String.valueOf(bookingCount));
+        view.getAdminTotalBookingsLabel().setText(String.valueOf(allBookings.size()));
         view.getAdminTotalRevenueLabel().setText(String.valueOf(totalRevenue));
+    }
+
+    // --- User Management Logic ---
+
+    /**
+     * Reads all users from file and reloads the cache.
+     * Use this when underlying data might have changed (e.g., block/delete).
+     */
+    private void refreshUserList() {
+        allUsers = User.getAllUsers();
+        displayUserTable(allUsers);
+    }
+
+    /**
+     * Displays a specific list of users in the table.
+     * Useful for search/sort where we don't want to re-read files.
+     */
+    private void displayUserTable(List<User> usersToDisplay) {
+        DefaultTableModel model = (DefaultTableModel) view.getAdminUserTable().getModel();
+        model.setRowCount(0);
+
+        // Calculate booking counts for current users efficiently
+        Map<String, Integer> bookingCounts = Ticket.getBookingCounts();
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+        for (User user : usersToDisplay) {
+            int count = bookingCounts.getOrDefault(user.getUsername(), 0);
+            // Ensure status is handled gracefully if null (model update)
+            String status = user.getStatus() != null ? user.getStatus() : "Active";
+
+            Object[] row = {
+                    user.getUsername(),
+                    user.getEmail(),
+                    user.getRegistrationDate() != null ? user.getRegistrationDate().format(formatter) : "N/A",
+                    status,
+                    count
+            };
+            model.addRow(row);
+        }
+    }
+
+    private void handleSearchUser() {
+        String query = view.getSearchBarUserAdmin().getText().trim().toLowerCase();
+        if (query.isEmpty()) {
+            displayUserTable(allUsers); // Show all if empty
+            return;
+        }
+
+        // Filter users
+        List<User> filtered = allUsers.stream()
+                .filter(u -> u.getUsername().toLowerCase().contains(query) ||
+                        u.getEmail().toLowerCase().contains(query))
+                .collect(Collectors.toList());
+
+        displayUserTable(filtered);
+    }
+
+    private void handleSortUser(String criteria) {
+        List<User> sortedList = new ArrayList<>(allUsers);
+
+        // For booking count sort, we need the counts map again unless we cache it in
+        // User object.
+        // For simplicity, let's just sort by basic fields or re-calculate for booking.
+
+        switch (criteria) {
+            case "Name":
+                Collections.sort(sortedList, Comparator.comparing(User::getUsername, String.CASE_INSENSITIVE_ORDER));
+                break;
+            case "Date":
+                Collections.sort(sortedList, Comparator.comparing(User::getRegistrationDate).reversed()); // Newest
+                                                                                                          // first
+                break;
+            case "Booking":
+                // This is expensive to re-calc but correct approach without changing User model
+                // too much
+                Map<String, Integer> counts = Ticket.getBookingCounts();
+                Collections.sort(sortedList, (u1, u2) -> {
+                    int c1 = counts.getOrDefault(u1.getUsername(), 0);
+                    int c2 = counts.getOrDefault(u2.getUsername(), 0);
+                    return Integer.compare(c2, c1); // Descending
+                });
+                break;
+        }
+        displayUserTable(sortedList);
+    }
+
+    private void handleViewUserDetail() {
+        int selectedRow = view.getAdminUserTable().getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(view, "Please select a user to view details!", "Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String username = (String) view.getAdminUserTable().getValueAt(selectedRow, 0); // Name column
+        String email = (String) view.getAdminUserTable().getValueAt(selectedRow, 1); // Email column
+
+        // Find user object
+        User user = getUserByEmail(email);
+        if (user != null) {
+            Map<String, Integer> counts = Ticket.getBookingCounts();
+            int count = counts.getOrDefault(user.getUsername(), 0);
+
+            // Calculate spent? (Optional/Bonus)
+            // int moneySpent = calculateMoneySpent(user.getUsername());
+
+            view.getUserNameLabel().setText("Name: " + user.getUsername());
+            view.getUserEmailLabel().setText("Email: " + user.getEmail());
+            view.getUserDateLabel().setText("Registered Date: " + user.getRegistrationDate());
+            view.getUserDetailBookingCountLabel().setText("Bookings: " + count);
+            view.getUserStatusLabel().setText("Status: " + user.getStatus());
+
+            // Real statistics from Ticket model
+            String recentMovie = Ticket.getRecentMovieByUser(user.getUsername());
+            String moneySpent = Ticket.getTotalSpentByUser(user.getUsername());
+
+            view.getUserRecentWatchLabel().setText("Recent Watch: " + recentMovie);
+            view.getUserMoneySpentLabel().setText("Money Spent: $" + moneySpent);
+
+            view.getUserDetailDialog().setSize(500, 500);
+            view.getUserDetailDialog().setLocationRelativeTo(view);
+            view.getUserDetailDialog().setVisible(true);
+        }
+    }
+
+    private User getUserByEmail(String email) {
+        for (User u : allUsers) {
+            if (u.getEmail().equals(email))
+                return u;
+        }
+        return null; // Should not happen if table is sync
+    }
+
+    private void handleBlockUnblockUser() {
+        int selectedRow = view.getAdminUserTable().getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(view, "Please select a user!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String email = (String) view.getAdminUserTable().getValueAt(selectedRow, 1);
+        String currentStatus = (String) view.getAdminUserTable().getValueAt(selectedRow, 3);
+
+        String newStatus = "Active".equals(currentStatus) ? "Blocked" : "Active";
+
+        if (User.updateStatus(email, newStatus)) {
+            JOptionPane.showMessageDialog(view, "User status updated to " + newStatus, "Success",
+                    JOptionPane.INFORMATION_MESSAGE);
+            refreshUserList();
+        } else {
+            JOptionPane.showMessageDialog(view, "Failed to update status!", "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+
+    private void handleDeleteUser() {
+        int selectedRow = view.getAdminUserTable().getSelectedRow();
+        if (selectedRow == -1) {
+            JOptionPane.showMessageDialog(view, "Please select a user!", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        String email = (String) view.getAdminUserTable().getValueAt(selectedRow, 1); // Email as unique ID
+
+        int confirm = JOptionPane.showConfirmDialog(view,
+                "Are you sure you want to delete this user?\nThis cannot be undone.", "Confirm Delete",
+                JOptionPane.YES_NO_OPTION);
+        if (confirm == JOptionPane.YES_OPTION) {
+            if (User.deleteUser(email)) {
+                JOptionPane.showMessageDialog(view, "User deleted successfully.", "Success",
+                        JOptionPane.INFORMATION_MESSAGE);
+                refreshUserList();
+                updateAdminDashboard(); // Update counts
+            } else {
+                JOptionPane.showMessageDialog(view, "Failed to delete user.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        }
     }
 }

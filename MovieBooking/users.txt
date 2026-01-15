@@ -1,1 +1,2 @@
-abiram,abirambhatta@gmail.com,Abiram12@,2026-01-15
+abiram,abirambhatta@gmail.com,Abiram12@,2026-01-15,Active
+robbin,robbin@gmail.com,Robin12@,2026-01-16,Active
